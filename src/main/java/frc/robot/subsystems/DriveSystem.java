@@ -14,14 +14,23 @@ import frc.robot.OI;
 import frc.robot.commands.drive;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.FeedbackDevice;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
 public class DriveSystem extends PIDSubsystem {
-
+  // create motor controller objects
   public final WPI_TalonSRX leftFront = new WPI_TalonSRX(14); // TODO: change Talon ID
   public final WPI_TalonSRX leftRear = new WPI_TalonSRX(2); // TODO: change Talon ID
   public final WPI_TalonSRX rightFront = new WPI_TalonSRX(3); // TODO: change Talon ID
   public final WPI_TalonSRX rightRear = new WPI_TalonSRX(1); // TODO: change Talon ID
+
+  // constants to find number of encoder ticks in an inch (used for autonomous)
+  public static final double TICKS_PER_ROTATION = 4096.0;
+	private static final double WHEEL_DIAMETER = 6.0;
+	private static final double WHEEL_CIRCUMFERENCE = WHEEL_DIAMETER * Math.PI;
+  private static final double TICKS_PER_INCH = TICKS_PER_ROTATION / WHEEL_CIRCUMFERENCE;
+  private static double targetPosition = 0;
 
   private final SpeedControllerGroup LEFT_SIDE = new SpeedControllerGroup(this.leftFront, this.leftRear);
   private final SpeedControllerGroup RIGHT_SIDE = new SpeedControllerGroup(this.rightFront, this.rightRear);
@@ -37,6 +46,8 @@ public class DriveSystem extends PIDSubsystem {
     for (final WPI_TalonSRX talon : new WPI_TalonSRX[] { this.leftFront, this.leftRear, this.rightFront, this.rightRear }) {
       DriveSystem.configureTalon(talon);
     }
+    this.leftFront.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 30);
+		this.rightFront.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 30);
     leftFront.setInverted(true);
     leftRear.setInverted(true);
     setDefaultCommand(new drive(this));
@@ -80,17 +91,66 @@ public class DriveSystem extends PIDSubsystem {
   }
 
   // Runs the drive in tank mode
-  public void drive(OI oi) {
-    this.DRIVE.tankDrive(oi.getLeftJoystick('Y') * 0.5, oi.getRightJoystick('Y') * 0.5);
-  }
+  // public void drive(OI oi) {
+  //   this.DRIVE.tankDrive(oi.getLeftJoystick('Y') * 0.5, oi.getRightJoystick('Y') * 0.5);
+  // }
 
+  // configure talon properties
   private static void configureTalon(final WPI_TalonSRX talon) {
     talon.configPeakCurrentLimit(100, 0);
     talon.configPeakCurrentDuration(3, 0);
     talon.configContinuousCurrentLimit(80, 0);
     talon.enableCurrentLimit(true);
     talon.configNeutralDeadband(0.001, 0);
+    talon.setNeutralMode(NeutralMode.Brake);
   }
+
+  // reset the current position on the encoders
+  public void resetPosition() {
+		this.rightFront.setSelectedSensorPosition(0);
+		this.leftFront.setSelectedSensorPosition(0);
+  }
+  
+  // drive a given distance (inches)
+  public void driveDistance(double inches) {
+		targetPosition = inches * TICKS_PER_INCH;
+
+		this.leftFront.set(ControlMode.Position, targetPosition);
+		this.rightFront.set(ControlMode.Position, targetPosition);
+  }
+  
+  // get left position
+  public double getPosition() {
+		return this.leftFront.getSelectedSensorPosition() / TICKS_PER_INCH;
+	}
+
+  // get left position
+	public double getLeftDistance() {
+		return this.leftFront.getSelectedSensorPosition() / TICKS_PER_INCH;
+	}
+
+  // get right position
+	public double getRightDistance() {
+		return this.rightFront.getSelectedSensorPosition() / TICKS_PER_INCH;
+  }
+  
+  // check if the robot reached its desired position
+  public boolean reachedPosition() {
+    // get motorcontroller positions
+		double leftPos = this.leftFront.getSelectedSensorPosition();
+		double rightPos = this.rightFront.getSelectedSensorPosition();
+
+    // return true if position is reached
+		if (targetPosition > 0) {
+			return (leftPos <= targetPosition) && (rightPos <= targetPosition);
+		} else if (targetPosition < 0) {
+			return (leftPos >= targetPosition) && (rightPos >= targetPosition);
+		} else {
+			return true;
+		}
+	}
+
+
 
   @Override
   protected void useOutput(double output, double setpoint) {
