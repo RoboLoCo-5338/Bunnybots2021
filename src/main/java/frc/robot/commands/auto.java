@@ -8,21 +8,25 @@ import edu.wpi.first.wpilibj2.command.CommandBase;
 import frc.robot.Robot;
 import frc.robot.subsystems.DriveSystem;
 
-public class drive extends CommandBase {
-  /** Creates a new drive. */
-  public drive(DriveSystem driveSystem) {
+public class auto extends CommandBase {
+  /** Creates a new auto. */
+  double target;
+  double targetTime = 6500;
+  public auto() {
     // Use addRequirements() here to declare subsystem dependencies.
-    addRequirements(driveSystem);
+    addRequirements(Robot.driveSystem);
   }
 
   // Called when the command is initially scheduled.
   @Override
-  public void initialize() {}
+  public void initialize() {
+    target = System.currentTimeMillis();
+  }
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    Robot.driveSystem.drive(Robot.oi);
+    Robot.driveSystem.autoDrive();
   }
 
   // Called once the command ends or is interrupted.
@@ -32,6 +36,6 @@ public class drive extends CommandBase {
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    return false;
+    return System.currentTimeMillis() - target > targetTime;
   }
 }

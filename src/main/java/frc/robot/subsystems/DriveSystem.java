@@ -9,21 +9,25 @@ import edu.wpi.first.wpilibj.controller.PIDController;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.PIDSubsystem;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.OI;
+import frc.robot.Robot;
+import frc.robot.RobotContainer;
 import frc.robot.commands.drive;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 
 public class DriveSystem extends PIDSubsystem {
   // create motor controller objects
-  public final WPI_TalonSRX leftFront = new WPI_TalonSRX(14); // TODO: change Talon ID
-  public final WPI_TalonSRX leftRear = new WPI_TalonSRX(2); // TODO: change Talon ID
-  public final WPI_TalonSRX rightFront = new WPI_TalonSRX(3); // TODO: change Talon ID
-  public final WPI_TalonSRX rightRear = new WPI_TalonSRX(1); // TODO: change Talon ID
+  public final WPI_TalonSRX leftFront = new WPI_TalonSRX(0); // TODO: change Talon ID
+  public final WPI_VictorSPX leftRear = new WPI_VictorSPX(1); // TODO: change Talon ID
+  public final WPI_TalonSRX rightFront = new WPI_TalonSRX(2); // TODO: change Talon ID
+  public final WPI_VictorSPX rightRear = new WPI_VictorSPX(3); // TODO: change Talon ID
 
   // constants to find number of encoder ticks in an inch (used for autonomous)
   public static final double TICKS_PER_ROTATION = 4096.0;
@@ -43,14 +47,20 @@ public class DriveSystem extends PIDSubsystem {
         // The PIDController used by the subsystem
         // set P, I, and D values here
         new PIDController(0.000213, 0, 0));
-    for (final WPI_TalonSRX talon : new WPI_TalonSRX[] { this.leftFront, this.leftRear, this.rightFront, this.rightRear }) {
+    for (final WPI_TalonSRX talon : new WPI_TalonSRX[] { this.leftFront, this.rightFront }) {
       DriveSystem.configureTalon(talon);
     }
+
+    for (final WPI_VictorSPX victor: new WPI_VictorSPX[] {this.leftRear, this.rightRear }) {
+      DriveSystem.configureVictor(victor);
+    }
+    this.leftRear.follow(this.leftFront);
+    this.rightFront.follow(this.rightFront);
     this.leftFront.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 30);
 		this.rightFront.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 30);
     leftFront.setInverted(true);
     leftRear.setInverted(true);
-    setDefaultCommand(new drive(this));
+    // setDefaultCommand(new drive(this));
   }
 
   public void setPIDF(double p, double i, double d, double f) {
@@ -70,18 +80,15 @@ public class DriveSystem extends PIDSubsystem {
     // creates a PID velocity robot. Uses PID settings to determine speeds
     public void tankDriveVelocity(double left, double right) {
       double targetLeft;
-      double targetRight;
-  
-      // max rpm of wheels desired
-      double targetVelocity = 400;
-  
-      // target speed in encoder units based on joystick position
+		  double targetRight;
+
+		  double targetVelocity = 400;
+
       targetLeft = left * targetVelocity * 4096 / 600.0;
       targetRight = right * targetVelocity * 4096 / 600.0;
-  
-      // set target speeds to motors
+
       this.leftFront.set(ControlMode.Velocity, targetLeft);
-      this.rightFront.set(ControlMode.Velocity, targetRight);
+      this.leftRear.set(ControlMode.Velocity, targetRight);
     }
 
 
@@ -91,9 +98,14 @@ public class DriveSystem extends PIDSubsystem {
   }
 
   // Runs the drive in tank mode
-  // public void drive(OI oi) {
-  //   this.DRIVE.tankDrive(oi.getLeftJoystick('Y') * 0.5, oi.getRightJoystick('Y') * 0.5);
-  // }
+  public void drive(OI oi) {
+    this.DRIVE.tankDrive(oi.getLeftJoystick('Y'), oi.getRightJoystick('Y'));
+  }
+
+  public void autoDrive() {
+    this.DRIVE.tankDrive(-0.5, 0.5);
+    
+  }
 
   // configure talon properties
   private static void configureTalon(final WPI_TalonSRX talon) {
@@ -103,6 +115,11 @@ public class DriveSystem extends PIDSubsystem {
     talon.enableCurrentLimit(true);
     talon.configNeutralDeadband(0.001, 0);
     talon.setNeutralMode(NeutralMode.Brake);
+  }
+
+  private static void configureVictor(final WPI_VictorSPX victor) {
+    victor.configNeutralDeadband(0.001, 0);
+    victor.setNeutralMode(NeutralMode.Brake);
   }
 
   // reset the current position on the encoders
@@ -115,7 +132,7 @@ public class DriveSystem extends PIDSubsystem {
   public void driveDistance(double inches) {
 		targetPosition = inches * TICKS_PER_INCH;
 
-		this.leftFront.set(ControlMode.Position, targetPosition);
+		this.leftFront.set(ControlMode.Position, -targetPosition);
 		this.rightFront.set(ControlMode.Position, targetPosition);
   }
   

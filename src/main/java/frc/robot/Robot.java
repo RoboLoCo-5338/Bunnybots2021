@@ -20,7 +20,7 @@ public class Robot extends TimedRobot {
   public static OI oi = new OI();
   public static DriveSystem driveSystem = new DriveSystem();
 
-  private RobotContainer m_robotContainer;
+  public RobotContainer m_robotContainer;
 
   /**
    * This function is run when the robot is first started up and should be used for any
